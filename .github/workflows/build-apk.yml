@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -18,14 +20,23 @@ jobs:
         with:
           gradle-version: '8.11.1'
       - name: Build debug APK
+        shell: bash
         run: |
-          for z in $(find . -name '*.zip' -not -path './.git/*'); do
-            echo "Unzip: $z"; unzip -o -q "$z" -d unzipped
-          done
-          F=$(find . -name settings.gradle.kts -not -path './.git/*' | head -1)
+          # Sabse naya upload kiya hua zip dhoondho (naam me space ho tab bhi)
+          LATEST=""; BEST=-1
+          while IFS= read -r -d '' z; do
+            t=$(git log -1 --format=%ct -- "$z"); t=${t:-0}
+            echo "Zip mili: $z"
+            if [ "$t" -ge "$BEST" ]; then BEST=$t; LATEST=$z; fi
+          done < <(find . -name '*.zip' -not -path './.git/*' -print0)
+          if [ -n "$LATEST" ]; then
+            echo "Ye zip use ho rahi hai: $LATEST"
+            unzip -o -q "$LATEST" -d unzipped
+          fi
+          F=$(find ./unzipped -name settings.gradle.kts 2>/dev/null | head -1)
+          [ -z "$F" ] && F=$(find . -name settings.gradle.kts -not -path './.git/*' | head -1)
           if [ -z "$F" ]; then
-            echo "PROJECT FILES NAHI MILI - app, gradle, settings.gradle.kts waghera upload karo"
-            echo "Repository me abhi ye files hain:"
+            echo "PROJECT FILES NAHI MILI - CoachFixBot.zip upload karo"
             find . -not -path './.git/*' | head -60
             exit 1
           fi
